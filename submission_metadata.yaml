@@ -12,6 +12,9 @@ team_members:
   - name: "Indranil Paul"
     email: "indranilpaul841@gmail.com"
     role: "AI/ML Engineer"          
+  - name: "Pratiksha Kumari"
+    email: "pratikshakvibes@gmail.com"
+    role: "software engineer backend"          
 
 # ============================================================================
 # Code and reproducibility
