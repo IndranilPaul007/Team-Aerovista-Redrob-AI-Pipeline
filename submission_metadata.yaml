@@ -14,7 +14,10 @@ team_members:
     role: "AI/ML Engineer"          
   - name: "Pratiksha Kumari"
     email: "pratikshakvibes@gmail.com"
-    role: "software engineer backend"          
+    role: "software engineer backend"
+  - name: "Abhishek Paul"
+    email: "rockabhi00001@gmail.com"
+    role: "Software Engineer"
 
 # ============================================================================
 # Code and reproducibility
