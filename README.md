@@ -14,7 +14,7 @@
 Traditional candidate matching relies on either flat keyword searches (low accuracy) or massive LLM prompts (computationally expensive, high timeout risk). We engineered a dual-stage pipeline that reserves heavy neural network compute strictly for the top percentile of viable candidates.
 
 ### 🌊 Pipeline Flow
-`[Raw JSONL (100k)]` ➡️ `[Multi-Layer Firewalls]` ➡️ `[Density Pre-Sorter]` ➡️ `[all-MiniLM-L6-v2 Vector Engine]` ➡️ `[Dynamic Rationale Generator]` ➡️ `[Final Top 100 CSV]`
+`[Raw JSONL (100k)]` -> `[Multi-Layer Firewalls]` -> `[Density Pre-Sorter]` -> `[all-MiniLM-L6-v2 Vector Engine]` -> `[Dynamic Rationale Generator]` -> `[Final Top 100 CSV]`
 
 ---
 
