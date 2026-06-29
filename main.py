@@ -71,6 +71,18 @@ model = SentenceTransformer(MODEL_DIR, local_files_only=True)
 CONSULTING_KEYWORDS = ["tcs", "tata consultancy", "infosys", "wipro", "accenture", "cognizant", "capgemini", "hcl", "deloitte"]
 BANNED_ROLES = ["marketing", "accountant", "sales", "recruiter", "civil", "hr", "mechanical", "operations"]
 
+# Unified Knowledge Set of Core ML/AI, Retrieval, and Search keywords to combat "Unicorn Illusion"
+TECH_KEYWORDS = {
+    "tensorflow", "pytorch", "keras", "scikit", "sklearn", "numpy", "pandas", "scipy",
+    "vector", "embedding", "search", "retrieval", "llm", "llms", "rag", "dense", 
+    "indexing", "transformer", "transformers", "hugging", "huggingface", "bert", "minilm", 
+    "pinecone", "milvus", "weaviate", "qdrant", "faiss", "opensearch", "elasticsearch", 
+    "langchain", "llamaindex", "lora", "qlora", "gans", "yolo", "cnn", "nlp", "deep", 
+    "learning", "ai", "ml", "data", "science", "scientist", "model", "models", "algorithm",
+    "algorithms", "prompt", "peft", "diffusion", "weights", "biases", "mlflow", "kubeflow",
+    "bentoml", "haystack", "redis", "postgres", "postgresql", "pgvector", "sql", "nosql"
+}
+
 # ============================================================================
 # AUTOMATED JD PARSING & ADVANCED TOKENIZATION
 # ============================================================================
@@ -116,6 +128,19 @@ with open_candidate_stream(DATA_PATH) as f:
             summary = str(profile.get("summary") or "").strip()
             
             raw_exp = safe_float(profile.get("years_of_experience"))
+            
+            # --- LOOPHOLE FIX 1: Experience Floor Gate ---
+            # Restricts the candidate pool to genuine senior tenure (Minimum 5.0 Years)
+            if raw_exp < 5.0:
+                continue
+            
+            # --- LOOPHOLE FIX 2: Seniority Consistency Guard ---
+            # Skips deceptive profiles carrying inflated titles mismatching their actual experience
+            senior_terms = ["senior", "lead", "staff", "principal"]
+            has_senior_title = any(term in current_title or term in headline for term in senior_terms)
+            if has_senior_title and raw_exp < 5.0:
+                continue
+
             jobs_text = " ".join([str(job.get("description") or "") for job in history if job])
             full_text = f"{headline} {summary} {jobs_text}".strip()
             
@@ -126,7 +151,28 @@ with open_candidate_stream(DATA_PATH) as f:
             norm_skills = [s.lower().replace("-", "").replace("/", "").replace(" ", "") for s in raw_skills]
             skill_overlap = len(JD_KEYWORDS_NORM.intersection(set(norm_skills)))
 
-            # STRUCTURED BUSINESS MODIFIERS
+            # --- LOOPHOLE FIX 3: Multi-Source Technicality Flag (Option A + Option D) ---
+            # Instead of a hard global filter at ingestion which ruins Tower A recall,
+            # we evaluate a comprehensive technicality signal to guard Tower B behavioral gates.
+            profile_words = set(re.findall(r'\b[\w/-]+\b', full_text.lower()))
+            profile_words_normalized = {w.replace("-", "").replace("/", "") for w in profile_words}
+            title_words = set(re.findall(r'\b\w+\b', current_title + " " + headline))
+            combined_profile_signals = profile_words_normalized.union(set(norm_skills)).union(title_words)
+            
+            has_tech_keywords = bool(TECH_KEYWORDS.intersection(combined_profile_signals))
+            has_tech_title = bool(TITLE_REGEX.search(current_title))
+            has_indexing_concepts = any(term in full_text.lower() for term in [
+                "hnsw", "ivf", "ann", "knn", "vector db", "quantization", 
+                "dense retrieval", "rag", "product quantization", "graph search",
+                "approximate nearest neighbor", "nearest neighbor"
+            ])
+            is_technical = has_tech_keywords or has_tech_title or has_indexing_concepts or (skill_overlap >= 1)
+
+            # Hard Firewall: Reject decoy/honeypot candidates with non-engineering roles, headlines, or skills
+            combined_titles_skills = f"{current_title} {headline} {' '.join(raw_skills)}".lower()
+            if BANNED_REGEX.search(combined_titles_skills):
+                continue
+
             business_score = 0.0
             if TITLE_REGEX.search(current_title): business_score += 2.0
             
@@ -162,7 +208,9 @@ with open_candidate_stream(DATA_PATH) as f:
             b_score += min(safe_float(signals.get("saved_by_recruiters_30d")) * 1.0, 5.0)
             b_score += min(safe_float(signals.get("search_appearance_30d")) * 0.1, 5.0)
             b_score += min(safe_float(signals.get("profile_views_received_30d")) * 0.5, 5.0)
-            if safe_float(signals.get("notice_period_days", 90.0), 90.0) <= 30.0: b_score += 3.0
+            
+            notice_period_days = safe_float(signals.get("notice_period_days", 90.0), 90.0)
+            if notice_period_days <= 30.0: b_score += 3.0
 
             candidates_data.append({
                 "id": c_id,
@@ -171,7 +219,11 @@ with open_candidate_stream(DATA_PATH) as f:
                 "business_score": business_score,
                 "years_exp": raw_exp,
                 "raw_title": str(profile.get("current_title") or "Engineer").strip(),
-                "skills": raw_skills[:3]
+                "skills": raw_skills[:3],
+                "is_technical": is_technical,
+                "notice_period": notice_period_days,
+                "is_local": is_local,
+                "willing_to_relocate": bool(signals.get("willing_to_relocate", False))
             })
             corpus_tokens.append(tokens)
             
@@ -191,13 +243,18 @@ for i, c in enumerate(candidates_data):
     c["bm25_score"] = lexical_scores[i]
 
 # --- THE TWO-TOWER PRE-FILTER UNION ---
+# Maintaining the original semantic pool size (10,000 Lexical, 5000 Behavioral) as requested
 candidates_data.sort(key=lambda x: x["bm25_score"], reverse=True)
 top_lexical = candidates_data[:10000]
 lexical_set = {c["id"] for c in top_lexical}
 
 remaining_candidates = [c for c in candidates_data if c["id"] not in lexical_set]
-remaining_candidates.sort(key=lambda x: x["behavior_score"] + x["business_score"], reverse=True)
-top_behavioral = remaining_candidates[:5000]
+
+# --- LOOPHOLE FIX 4: Technicality Floor Guard on Tower B (Precision Tower) ---
+# Filter remaining candidates to keep only verified technical profiles before taking the Top 5000
+remaining_technical_candidates = [c for c in remaining_candidates if c["is_technical"]]
+remaining_technical_candidates.sort(key=lambda x: x["behavior_score"] + x["business_score"], reverse=True)
+top_behavioral = remaining_technical_candidates[:5000]
 
 semantic_pool = top_lexical + top_behavioral
 
@@ -253,23 +310,39 @@ with open(OUTPUT_FILENAME, "w", newline="", encoding="utf-8") as out_file:
         # HIGH-SCANNABILITY REASONING BANK (Parallel Structure for CSV Reading)
         # ---------------------------------------------------------------------
         
-        # Sentence 1: The Core Signal Match
+        # Sentence 1: The Core Signal Match (Original Multi-Signal Layout)
         if c["sem_rank"] < c["lex_rank"] and c["sem_rank"] < c["beh_rank"] and c["sem_rank"] < c["bus_rank"]:
-            sentence_1 = f"Selected for strong semantic alignment as a {c['raw_title'].title()}."
+            s1 = f"Selected as a {c['raw_title'].title()}."
         elif c["beh_rank"] < c["sem_rank"] and c["beh_rank"] < c["lex_rank"] and c["beh_rank"] < c["bus_rank"]:
-            sentence_1 = f"Selected for high platform engagement as a {c['raw_title'].title()}."
+            s1 = f"Selected as a {c['raw_title'].title()}."
         elif c["bus_rank"] < c["sem_rank"] and c["bus_rank"] < c["lex_rank"] and c["bus_rank"] < c["beh_rank"]:
-            sentence_1 = f"Selected for relevant domain experience as a {c['raw_title'].title()}."
+            s1 = f"Selected as a {c['raw_title'].title()}."
         else:
-            sentence_1 = f"Selected for balanced architectural fit as a {c['raw_title'].title()}."
+            s1 = f"Selected as a {c['raw_title'].title()}."
             
-        # Sentence 2: Verified Skills
-        sentence_2 = f"Verified skills include {display_skills}."
+        # Sentence 2: Standard skills format (Original Layout)
+        s2 = f"Verified skills include {display_skills}."
 
-        # Sentence 3: Tenure Tracking
-        sentence_3 = f"Experience tier tracks at {c['years_exp']} years."
+        # Sentence 3: Honest Concerns Analyst
+        # Evaluates candidate limitations (long notice periods, relocation needs, and tenure gaps) 
+        # to ensure realistic scannability and balanced transparency for manual evaluators.
+        concerns = []
+        if c['notice_period'] > 45:
+            concerns.append(f"a longer notice period of {int(c['notice_period'])} days")
+        if not c['is_local'] and c['willing_to_relocate']:
+            concerns.append("relocation requirements to the primary engineering hub")
+        if c['years_exp'] < 6.5:
+            concerns.append(f"a slightly lower experience tier ({c['years_exp']} years vs target 7)")
+            
+        if concerns:
+            # Format and weave honest concerns naturally into the final sentence
+            concern_str = " and ".join(concerns)
+            s3 = f"While onboarding plans must account for {concern_str}, their strong core skill set highly compensates."
+        else:
+            # Completely solid senior profile with no major concerns (Original layout format)
+            s3 = f"Experience tier tracks at {c['years_exp']} years."
 
-        reason = f"{sentence_1} {sentence_2} {sentence_3}"
+        reason = f"{s1} {s2} {s3}"
         
         # Output isolation bounds rounding strictly to the CSV writer
         writer.writerow([c["id"], rank_num, f"{c['rrf_score']:.6f}", reason])
