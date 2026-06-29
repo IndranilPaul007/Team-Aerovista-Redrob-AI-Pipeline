@@ -25,23 +25,23 @@ Our pipeline processes data in four highly optimized stages:
 
 ## 🛠️ Quick Start
 
-1. **Clone the repository:**
+**Clone the repository:**
    
 ```bash
    git clone [https://github.com/IndranilPaul007/Team-Aerovista-Redrob-AI-Pipeline](https://github.com/IndranilPaul007/Team-Aerovista-Redrob-AI-Pipeline)
    
-2. **Install requirements:**
+Install requirements:
 
 Bash
    pip install -r requirements.txt
    pip install rank_bm25-0.2.2-py3-none-any.whl
    
-3. **Execute the pipeline:**
+Execute the pipeline:
 Ensure the all-MiniLM-L6-v2 model folder is in the root directory.
 
 Bash
    python main.py
-   
+
 🧠 Why this pipeline is "Judge-Proof"
 Deterministic Reasoning: We use a dynamic syntax-rotator to inject rationales into the final CSV. This ensures "human-readable" outputs without the cost or unpredictability of generative AI.
 
