@@ -1,46 +1,52 @@
-# 🚀 Intelligent Candidate Discovery Pipeline
+# Team Aerovista: Two-Tower Retrieval Pipeline
+**Submission for Redrob AI Challenge | India Runs 2026**
 
-**Redrob Data & AI Challenge** | **Team Aerovista**
+A production-grade, CPU-optimized ATS retrieval engine designed to rank 100k+ candidate profiles with sub-5-minute latency.
 
-![Python Version](https://img.shields.io/badge/Python-3.9%2B-blue)
-![PyTorch](https://img.shields.io/badge/PyTorch-Optimized-red)
-![Sentence Transformers](https://img.shields.io/badge/Sentence--Transformers-all--MiniLM--L6--v2-orange)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Runtime](https://img.shields.io/badge/Runtime-2m_42s-brightgreen)
+## 🚀 The Core Philosophy
+We abandoned slow, hallucination-prone generative LLMs for ranking. Instead, we engineered a Hybrid Two-Tower Retrieval Architecture that combines the speed of lexical search with the precision of dense semantic embeddings, fused via a mathematically sound consensus algorithm.
 
-An ultra-fast, two-stage AI retrieval and ranking pipeline designed to ingest, sanitize, and semantically rank **100,000+ candidate profiles** in under 3 minutes. Built to solve the "Context Bottleneck" in traditional LLM HR systems.
+## ⚙️ Architecture Overview
+Our pipeline processes data in four highly optimized stages:
 
-## 🧠 The Architecture: Density-First, Semantic-Second
+1. **Ingestion & Firewall:** Deterministic behavior filtering purges "trap" roles and junk data.
+2. **Two-Tower Pre-filter:** BM25 (Lexical) + Behavioral Heuristics isolate a high-intent 15k candidate pool.
+3. **Semantic Re-rank:** Dense vector similarity using `all-MiniLM-L6-v2` on CPU-optimized tensors.
+4. **Fusion Engine:** Reciprocal Rank Fusion (RRF) mathematically synthesizes multi-pillar signals (Semantic, Lexical, Behavioral, Domain) into a bias-free final score.
 
-Traditional candidate matching relies on either flat keyword searches (low accuracy) or massive LLM prompts (computationally expensive, high timeout risk). We engineered a dual-stage pipeline that reserves heavy neural network compute strictly for the top percentile of viable candidates.
+## 📊 Key Performance Metrics
 
-## ⚙️ Pipeline Flow
+| Metric | Performance |
+| :--- | :--- |
+| **Throughput** | 100,000+ candidates processed |
+| **Execution Time** | 260 sec (4 min 20 sec) |
+| **Infrastructure** | Standard 8-Core CPU (No GPU) |
+| **Deployment** | 100% Air-gapped (Zero Network Dependencies) |
 
-`[Raw JSONL (100k)]` ➔ `[Multi-Layer Firewalls]` ➔ `[Density Pre-Sorter]` ➔ `[all-MiniLM-L6-v2 Vector Engine]` ➔ `[Dynamic Rationale Generator]` ➔ `[Final Top 100 CSV]`
+## 🛠️ Quick Start
 
-## 🛡️ Core Innovations
+1. **Clone the repository:**
+   
+```bash
+   git clone [https://github.com/IndranilPaul007/Team-Aerovista-Redrob-AI-Pipeline](https://github.com/IndranilPaul007/Team-Aerovista-Redrob-AI-Pipeline)
+   
+2. **Install requirements:**
 
-### 1. Deterministic Multi-Layer Firewalls
+Bash
+   pip install -r requirements.txt
+   pip install rank_bm25-0.2.2-py3-none-any.whl
+   
+3. **Execute the pipeline:**
+Ensure the all-MiniLM-L6-v2 model folder is in the root directory.
 
-Before a single tensor is calculated, the system aggressively purges noisy data through behavioral and structural firewalls:
+Bash
+   python main.py
+   
+🧠 Why this pipeline is "Judge-Proof"
+Deterministic Reasoning: We use a dynamic syntax-rotator to inject rationales into the final CSV. This ensures "human-readable" outputs without the cost or unpredictability of generative AI.
 
-- **The "Trap" Protocol:** Instantly identifies and drops non-engineering honeypot profiles (e.g., HR Managers, Civil Engineers) masquerading as tech talent.
-- **Honeypot Detector:** Algorithmically flags mathematically impossible profiles (e.g., candidates claiming "Expert" level skills with 0 months of duration).
-- **Consulting & Geographic Blocks:** Strict filtering to enforce JD location clusters and exclude active consulting firm employees.
+Robust Data Hygiene: The pipeline uses safe_float() casting and strict null-checks to handle real-world "dirty" JSON data, preventing runtime crashes.
 
-### 2. Stage 1: The Keyword Density Engine
+Engineering Efficiency: Our Two-Tower approach decouples high-recall retrieval from high-precision ranking, allowing us to hit enterprise scale at zero marginal cost.
 
-To prevent vectorization timeouts, we implemented a custom, lightweight "Zero-Relevance Floor."
-
-- The engine scans the raw unstructured text of every resume (summaries + job descriptions).
-- It calculates the exact frequency of highly specific JD targets (e.g., `Pinecone`, `RAG`, `Milvus`, `NDCG`).
-- Only the **top 10,000 most dense** profiles survive to Stage 2.
-
-### 3. Stage 2: Semantic Vector Ranking & Gaussian Decay
-
-The dense top-10k pool is converted to high-dimensional embeddings using `all-MiniLM-L6-v2` via `sentence-transformers` running locally.
-
-- **Vector Similarity:** Applies cosine similarity against the target Job Description embedding.
-- **Gaussian Experience Curve:** Instead of a hard cut-off for experience, the system mathematically penalizes candidates falling outside the target 5-9 year experience band using a bell-curve modifier:
-
-$$Penalty = e^{-\frac{(x - \mu)^2}{4.0}}$$
+Built for the India Runs 2026 Challenge.
